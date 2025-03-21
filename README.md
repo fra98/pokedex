@@ -1,2 +1,3 @@
-# pokedex
+# Pokedex
+
 Pokedex translation API
