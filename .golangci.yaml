@@ -97,7 +97,7 @@ linters:
     - staticcheck
     - stylecheck
     - tagalign
-    - tagliatelle
+    # - tagliatelle
     - testableexamples
     - testifylint
     - testpackage
@@ -143,6 +143,8 @@ linters-settings:
     local-prefixes: github.com/fra98/pokedex
   govet:
     enable-all: true
+    disable:
+      - fieldalignment
   misspell:
     locale: US
   nolintlint:
@@ -155,6 +157,8 @@ linters-settings:
 issues:
   # Disable the default exclude patterns (as they disable the mandatory comments)
   exclude-use-default: false
+  exclude:
+    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
 
 run:
   timeout: 10m
