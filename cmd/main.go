@@ -23,9 +23,14 @@ func main() {
 	// Initialize options for the application
 	opts := flags.Init()
 
-	// Initialize clients
-	pokeClient := pokeapi.NewPokeAPIClient(nil)
-	translationClient := translator.NewFunTranslationClient(nil)
+	var pokeClient pokeapi.Client = pokeapi.NewPokeAPIClient(nil)
+	var translationClient translator.Client = translator.NewFunTranslationClient(nil)
+
+	if !opts.DisableCache {
+		// Initialize clients with cache
+		pokeClient = pokeapi.NewCachedPokeAPIClient(pokeClient, opts.CacheTimeoutExpiration, opts.CacheCleanupInterval)
+		translationClient = translator.NewCachedTranslationClient(translationClient, opts.CacheTimeoutExpiration, opts.CacheCleanupInterval)
+	}
 
 	// Initialize service
 	pokeService := service.NewPokemonService(pokeClient, translationClient)
