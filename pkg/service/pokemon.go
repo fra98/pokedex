@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fra98/pokedex/pkg/client/pokeapi"
 	"github.com/fra98/pokedex/pkg/client/translator"
@@ -80,8 +81,15 @@ func extractEnglishDescription(species *pokeapi.PokemonSpecies) (string, error) 
 	for i := range species.FlavorTextEntries {
 		entryFlavor := &species.FlavorTextEntries[i]
 		if entryFlavor.Language.Name == "en" {
-			return entryFlavor.FlavorText, nil
+			return sanitizeDescription(entryFlavor.FlavorText), nil
 		}
 	}
 	return "", errors.ErrResourceNotFound
+}
+
+// Helper function to sanitize description.
+func sanitizeDescription(description string) string {
+	sanitizedDesc := strings.ReplaceAll(description, "\n", " ")  // replace newlines with spaces
+	sanitizedDesc = strings.ReplaceAll(sanitizedDesc, "\f", " ") // replace form feeds with spaces
+	return sanitizedDesc
 }
