@@ -70,8 +70,8 @@ build:
 
 # Build docker image
 build-docker:
-	docker build -t ghcr.io/fra98/pokedex:latest -f ./Dockerfile .
+	docker build -t pokedex:latest -f ./Dockerfile .
 
 # Run docker image
 run-docker: build-docker
-	docker run -p 8080:8080 ghcr.io/fra98/pokedex:latest
+	docker run -p 8080:8080 pokedex:latest
