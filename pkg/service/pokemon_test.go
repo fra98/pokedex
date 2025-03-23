@@ -15,6 +15,7 @@ import (
 	"github.com/fra98/pokedex/pkg/api"
 	"github.com/fra98/pokedex/pkg/client/pokeapi"
 	"github.com/fra98/pokedex/pkg/client/translator"
+	"github.com/fra98/pokedex/pkg/consts"
 	"github.com/fra98/pokedex/pkg/models"
 	"github.com/fra98/pokedex/pkg/service"
 )
@@ -45,7 +46,7 @@ func TestGetPokemonInfo_Success(t *testing.T) {
 	// Create a new test server with the handler
 	pokeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify the request
-		assert.Equal(t, "/api/v2/pokemon-species/mewtwo", r.URL.Path)
+		assert.Equal(t, "/pokemon-species/mewtwo", r.URL.Path)
 		assert.Equal(t, "GET", r.Method)
 
 		// Return a fixed response
@@ -66,7 +67,7 @@ func TestGetPokemonInfo_Success(t *testing.T) {
 	pokemonService := service.NewPokemonService(pokeClient, translatorClient)
 
 	// Call the service method
-	result, err := pokemonService.GetPokemonInfo("mewtwo")
+	result, err := pokemonService.GetPokemonInfo(t.Context(), "mewtwo")
 
 	// Assertions
 	require.NoError(t, err)
@@ -96,10 +97,11 @@ func TestGetTranslatedPokemonInfo_Success(t *testing.T) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/translate/yoda.json", r.URL.Path) // Should use Yoda for legendary
 
-		// Parse form data
-		err := r.ParseForm()
+		// Parse request body
+		var requestBody map[string]string
+		err := json.NewDecoder(r.Body).Decode(&requestBody)
 		assert.NoError(t, err)
-		assert.Contains(t, r.Form.Get("text"), "original description.")
+		assert.Equal(t, "original description", requestBody["text"])
 
 		// Return a fixed response
 		w.Header().Set("Content-Type", "application/json")
@@ -120,7 +122,7 @@ func TestGetTranslatedPokemonInfo_Success(t *testing.T) {
 	pokemonService := service.NewPokemonService(pokeClient, translatorClient)
 
 	// Call the service method
-	result, err := pokemonService.GetTranslatedPokemonInfo("mewtwo")
+	result, err := pokemonService.GetTranslatedPokemonInfo(t.Context(), "mewtwo")
 
 	// Assertions
 	require.NoError(t, err)
@@ -160,14 +162,14 @@ func TestGetTranslatedPokemonInfo_RateLimiting(t *testing.T) {
 	pokemonService := service.NewPokemonService(pokeClient, translatorClient)
 
 	// Call the service method
-	result, err := pokemonService.GetTranslatedPokemonInfo("pikachu")
+	result, err := pokemonService.GetTranslatedPokemonInfo(t.Context(), "mewtwo")
 
 	// Assertions - should get the basic description back when translation fails
 	require.NoError(t, err) // This should not return an error
-	assert.Equal(t, "pikachu", result.Name)
+	assert.Equal(t, "mewtwo", result.Name)
 	assert.Equal(t, "original description", result.Description)
-	assert.Equal(t, "forest", result.Habitat)
-	assert.False(t, result.IsLegendary)
+	assert.Equal(t, "rare", result.Habitat)
+	assert.True(t, result.IsLegendary)
 }
 
 func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func length for test cases
@@ -187,12 +189,12 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 		{
 			name:                    "cave_pokemon",
 			pokemonName:             "zubat",
-			habitat:                 "cave",
+			habitat:                 consts.HabitatCaveType,
 			isLegendary:             false,
 			originalDescription:     "Original description for cave Pokemon",
 			yodaTranslation:         "Yoda translation for cave Pokemon, this is",
 			shakespeareTranslation:  "Shakespeare translation for cave Pokemon",
-			expectedTranslationType: "yoda", // Should use Yoda for cave Pokemon
+			expectedTranslationType: consts.YodaTranslationType, // Should use Yoda for cave Pokemon
 		},
 		{
 			name:                    "legendary_pokemon",
@@ -202,17 +204,17 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 			originalDescription:     "Original description for legendary Pokemon",
 			yodaTranslation:         "Yoda translation for legendary Pokemon, this is",
 			shakespeareTranslation:  "Shakespeare translation for legendary Pokemon",
-			expectedTranslationType: "yoda", // Should use Yoda for legendary Pokemon
+			expectedTranslationType: consts.YodaTranslationType, // Should use Yoda for legendary Pokemon
 		},
 		{
 			name:                    "cave_and_legendary_pokemon",
 			pokemonName:             "registeel",
-			habitat:                 "cave",
+			habitat:                 consts.HabitatCaveType,
 			isLegendary:             true,
 			originalDescription:     "Original description for cave legendary Pokemon",
 			yodaTranslation:         "Yoda translation for cave legendary Pokemon, this is",
 			shakespeareTranslation:  "Shakespeare translation for cave legendary Pokemon",
-			expectedTranslationType: "yoda", // Should use Yoda for both cave and legendary
+			expectedTranslationType: consts.YodaTranslationType, // Should use Yoda for both cave and legendary
 		},
 		{
 			name:                    "normal_pokemon",
@@ -222,7 +224,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 			originalDescription:     "Original description for normal Pokemon",
 			yodaTranslation:         "Yoda translation for normal Pokemon, this is",
 			shakespeareTranslation:  "Shakespeare translation for normal Pokemon",
-			expectedTranslationType: "shakespeare", // Should use Shakespeare for normal Pokemon
+			expectedTranslationType: consts.ShakespeareTranslationType, // Should use Shakespeare for normal Pokemon
 		},
 		{
 			name:                    "translation_failed",
@@ -232,7 +234,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 			originalDescription:     "Original description for failed translation",
 			yodaTranslation:         "",         // Empty to simulate translation failure
 			shakespeareTranslation:  "",         // Empty to simulate translation failure
-			expectedTranslationType: "original", // Should fall back to original if translation fails
+			expectedTranslationType: "original", // Neither yoda or shakespeare, should fall back to original if translation fails
 		},
 	}
 
@@ -245,8 +247,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 				w.WriteHeader(http.StatusOK)
 
 				// Extract pokemon name from URL
-				path := r.URL.Path
-				pokemonName := path[strings.LastIndex(path, "/")+1:]
+				pokemonName := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 
 				// Verify it's the correct Pokemon for this test case
 				assert.Equal(t, tc.pokemonName, pokemonName)
@@ -278,7 +279,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 				var translation string
 
 				switch {
-				case strings.Contains(path, "yoda"):
+				case strings.Contains(path, consts.YodaTranslationType):
 					// Only return a valid translation if we have one for the test case
 					if tc.yodaTranslation != "" {
 						translation = tc.yodaTranslation
@@ -289,7 +290,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 						assert.NoError(t, err)
 						return
 					}
-				case strings.Contains(path, "shakespeare"):
+				case strings.Contains(path, consts.ShakespeareTranslationType):
 					// Only return a valid translation if we have one for the test case
 					if tc.shakespeareTranslation != "" {
 						translation = tc.shakespeareTranslation
@@ -331,13 +332,14 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 
 			// Test standard endpoint first
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/"+tc.pokemonName, http.NoBody)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/"+tc.pokemonName, http.NoBody)
+			require.NoError(t, err)
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusOK, w.Code)
 
 			var basicResponse models.PokemonResponse
-			err := json.Unmarshal(w.Body.Bytes(), &basicResponse)
+			err = json.Unmarshal(w.Body.Bytes(), &basicResponse)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.pokemonName, basicResponse.Name)
@@ -347,7 +349,8 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 
 			// Test translated endpoint
 			w = httptest.NewRecorder()
-			req, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/translated/"+tc.pokemonName, http.NoBody)
+			req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/translated/"+tc.pokemonName, http.NoBody)
+			require.NoError(t, err)
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -362,11 +365,11 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 
 			// Check that the correct translation was used
 			switch tc.expectedTranslationType {
-			case "yoda":
+			case consts.YodaTranslationType:
 				assert.Equal(t, tc.yodaTranslation, translatedResponse.Description)
-			case "shakespeare":
+			case consts.ShakespeareTranslationType:
 				assert.Equal(t, tc.shakespeareTranslation, translatedResponse.Description)
-			case "original":
+			default:
 				assert.Equal(t, tc.originalDescription, translatedResponse.Description)
 			}
 		})

@@ -20,13 +20,13 @@ func SetupMiddlewares(r *gin.Engine) {
 
 // RegisterEndpoints registers the endpoints of the API to the server engine.
 func RegisterEndpoints(r *gin.Engine, pokeHandler *api.PokemonHandler) {
-	// Group the endpoints by version
-	v1 := r.Group("/v1")
+	// TODO: in production, we should version the API endpoints
+	// v1 := r.Group("/v1")
 
 	// Health check endpoint
-	v1.GET("/health", api.IsHealthy)
+	r.GET("/health", api.IsHealthy)
 
 	// Pokemon endpoints
-	v1.GET("/pokemon/:name", pokeHandler.GetPokemon)
-	v1.GET("/pokemon/translated/:name", pokeHandler.GetTranslatedPokemon)
+	r.GET("/pokemon/:name", pokeHandler.GetPokemon)
+	r.GET("/pokemon/translated/:name", pokeHandler.GetTranslatedPokemon)
 }

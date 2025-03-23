@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"k8s.io/utils/ptr"
+
+	"github.com/fra98/pokedex/pkg/errors"
 )
 
 const defaultBaseURL = "https://pokeapi.co/api/v2"
@@ -44,7 +46,7 @@ func (c *PokeAPIClient) GetPokemonSpecies(ctx context.Context, name string) (*Po
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get Pokemon species (code: %d): %w", resp.StatusCode, ErrFailedRequest)
+		return nil, fmt.Errorf("failed to get Pokemon species (code: %d): %w", resp.StatusCode, errors.ErrFailedRequest)
 	}
 
 	var species PokemonSpecies

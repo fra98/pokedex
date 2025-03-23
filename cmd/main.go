@@ -24,8 +24,8 @@ func main() {
 	opts := flags.Init()
 
 	// Initialize clients
-	var pokeClient pokeapi.Client = pokeapi.NewPokeAPIClient(nil)
-	var translationClient translator.Client = translator.NewFunTranslationClient(nil)
+	pokeClient := pokeapi.NewPokeAPIClient(nil)
+	translationClient := translator.NewFunTranslationClient(nil)
 
 	// Initialize service
 	pokeService := service.NewPokemonService(pokeClient, translationClient)

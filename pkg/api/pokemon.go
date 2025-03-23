@@ -23,7 +23,7 @@ func NewPokemonHandler(pokemonService service.Pokemon) *PokemonHandler {
 func (h *PokemonHandler) GetPokemon(c *gin.Context) {
 	name := c.Param("name")
 
-	pokemon, err := h.pokemonService.GetPokemonInfo(name)
+	pokemon, err := h.pokemonService.GetPokemonInfo(c.Request.Context(), name)
 	if err != nil {
 		err := httperror.NewHTTPError("unable to retrieve pokemon info", http.StatusNotFound)
 		_ = c.Error(err)
@@ -37,7 +37,7 @@ func (h *PokemonHandler) GetPokemon(c *gin.Context) {
 func (h *PokemonHandler) GetTranslatedPokemon(c *gin.Context) {
 	name := c.Param("name")
 
-	pokemon, err := h.pokemonService.GetTranslatedPokemonInfo(name)
+	pokemon, err := h.pokemonService.GetTranslatedPokemonInfo(c.Request.Context(), name)
 	if err != nil {
 		err := httperror.NewHTTPError("unable to retrieve translated pokemon info", http.StatusNotFound)
 		_ = c.Error(err)

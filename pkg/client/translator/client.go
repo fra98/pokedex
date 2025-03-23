@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"k8s.io/utils/ptr"
+
+	"github.com/fra98/pokedex/pkg/consts"
+	"github.com/fra98/pokedex/pkg/errors"
 )
 
-const defaultBaseURL = "https://api.funtranslations.com/translate"
+const defaultBaseURL = "https://api.funtranslations.com"
 
 var _ Client = &FunTranslationClient{} // check if it implements the Client interface.
 
@@ -66,11 +69,11 @@ func (c *FunTranslationClient) Translate(ctx context.Context, text, translationT
 
 	// Handle rate limit exceeded error
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return "", fmt.Errorf("failed to translate text: %w", ErrRateLimitExceeded)
+		return "", fmt.Errorf("failed to translate text: %w", errors.ErrRateLimitExceeded)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to translate text (code: %d): %w", resp.StatusCode, ErrFailedRequest)
+		return "", fmt.Errorf("failed to translate text (code: %d): %w", resp.StatusCode, errors.ErrFailedRequest)
 	}
 
 	var translation translationResponse
@@ -83,11 +86,11 @@ func (c *FunTranslationClient) Translate(ctx context.Context, text, translationT
 
 func (c *FunTranslationClient) getEndpoint(translationType string) (string, error) {
 	switch translationType {
-	case "yoda":
-		return c.baseURL + "/yoda.json", nil
-	case "shakespeare":
-		return c.baseURL + "/shakespeare.json", nil
+	case consts.YodaTranslationType:
+		return c.baseURL + "/translate" + "/yoda.json", nil
+	case consts.ShakespeareTranslationType:
+		return c.baseURL + "/translate" + "/shakespeare.json", nil
 	default:
-		return "", fmt.Errorf("failed to retrieve endpoint: %w", ErrUnsupportedTranslationType)
+		return "", fmt.Errorf("failed to retrieve endpoint: %w", errors.ErrUnsupportedTranslationType)
 	}
 }

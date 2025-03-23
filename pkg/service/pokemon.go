@@ -1,8 +1,13 @@
 package service
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/fra98/pokedex/pkg/client/pokeapi"
 	"github.com/fra98/pokedex/pkg/client/translator"
+	"github.com/fra98/pokedex/pkg/consts"
+	"github.com/fra98/pokedex/pkg/errors"
 	"github.com/fra98/pokedex/pkg/models"
 )
 
@@ -23,13 +28,60 @@ func NewPokemonService(pokeClient pokeapi.Client, translatorClient translator.Cl
 }
 
 // GetPokemonInfo retrieves the information of a Pokemon given its name.
-func (s *PokemonService) GetPokemonInfo(name string) (*models.PokemonResponse, error) {
-	_ = name
-	panic("not implemented") // TODO: Implement
+func (s *PokemonService) GetPokemonInfo(ctx context.Context, name string) (*models.PokemonResponse, error) {
+	pokemonSpecies, err := s.pokeClient.GetPokemonSpecies(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve pokemon species: %w", err)
+	}
+
+	description, err := extractEnglishDescription(pokemonSpecies)
+	if err != nil {
+		return nil, fmt.Errorf("unable to extract English description: %w", err)
+	}
+
+	return &models.PokemonResponse{
+		Name:        pokemonSpecies.Name,
+		Description: description,
+		Habitat:     pokemonSpecies.Habitat.Name,
+		IsLegendary: pokemonSpecies.IsLegendary,
+	}, nil
 }
 
 // GetTranslatedPokemonInfo retrieves the information of a Pokemon given its name with a translated description.
-func (s *PokemonService) GetTranslatedPokemonInfo(name string) (*models.PokemonResponse, error) {
-	_ = name
-	panic("not implemented") // TODO: Implement
+func (s *PokemonService) GetTranslatedPokemonInfo(ctx context.Context, name string) (*models.PokemonResponse, error) {
+	// Get basic info first
+	pokemon, err := s.GetPokemonInfo(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine translation type
+	var translationType string
+	if pokemon.IsLegendary || pokemon.Habitat == consts.HabitatCaveType {
+		translationType = consts.YodaTranslationType
+	} else {
+		translationType = consts.ShakespeareTranslationType
+	}
+
+	// Get translation
+	translatedDesc, err := s.translatorClient.Translate(ctx, pokemon.Description, translationType)
+	if err != nil {
+		// if translation fails, fallback to original description
+		translatedDesc = pokemon.Description
+	}
+
+	// Update description
+	pokemon.Description = translatedDesc
+	return pokemon, nil
+}
+
+// Helper function to extract English description.
+func extractEnglishDescription(species *pokeapi.PokemonSpecies) (string, error) {
+	for i := range species.FlavorTextEntries {
+		entryFlavor := &species.FlavorTextEntries[i]
+		if entryFlavor.Language.Name == "en" {
+			return entryFlavor.FlavorText, nil
+		}
+	}
+	return "", errors.ErrResourceNotFound
 }

@@ -1,4 +1,5 @@
-package translator
+// Package errors provides common error types for the application.
+package errors
 
 import "errors"
 
@@ -10,3 +11,6 @@ var ErrRateLimitExceeded = errors.New("rate limit exceeded")
 
 // ErrUnsupportedTranslationType represents an error when the translation type is not supported.
 var ErrUnsupportedTranslationType = errors.New("unsupported translation type")
+
+// ErrResourceNotFound represents an error when a resource is not found.
+var ErrResourceNotFound = errors.New("resource not found")
