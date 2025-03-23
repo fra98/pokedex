@@ -1,4 +1,4 @@
-package funtranslator
+package translator
 
 import (
 	"bytes"
@@ -13,22 +13,30 @@ import (
 
 const defaultBaseURL = "https://api.funtranslations.com/translate"
 
-// Client represents a FunTranslations client.
-type Client struct {
+var _ Client = &FunTranslationClient{} // check if it implements the Client interface.
+
+// FunTranslationClient represents a client that interacts with the FunTranslations API.
+type FunTranslationClient struct {
 	httpClient *http.Client
 	baseURL    string
 }
 
-// NewClient returns a new FunTranslations client.
-func NewClient(baseURL *string) *Client {
-	return &Client{
+// NewFunTranslationClient returns a new FunTranslations client.
+func NewFunTranslationClient(baseURL *string) *FunTranslationClient {
+	return &FunTranslationClient{
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		baseURL:    ptr.Deref(baseURL, defaultBaseURL),
 	}
 }
 
+type translationResponse struct {
+	Contents struct {
+		Translated string `json:"translated"`
+	} `json:"contents"`
+}
+
 // Translate returns a translated text according to the translation type.
-func (c *Client) Translate(ctx context.Context, text, translationType string) (string, error) {
+func (c *FunTranslationClient) Translate(ctx context.Context, text, translationType string) (string, error) {
 	endpoint, err := c.getEndpoint(translationType)
 	if err != nil {
 		return "", err
@@ -73,7 +81,7 @@ func (c *Client) Translate(ctx context.Context, text, translationType string) (s
 	return translation.Contents.Translated, nil
 }
 
-func (c *Client) getEndpoint(translationType string) (string, error) {
+func (c *FunTranslationClient) getEndpoint(translationType string) (string, error) {
 	switch translationType {
 	case "yoda":
 		return c.baseURL + "/yoda.json", nil

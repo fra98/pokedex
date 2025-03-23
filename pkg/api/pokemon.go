@@ -11,11 +11,11 @@ import (
 
 // PokemonHandler handles the Pokemon API endpoints.
 type PokemonHandler struct {
-	pokemonService service.PokemonService
+	pokemonService service.Pokemon
 }
 
 // NewPokemonHandler creates a new PokemonHandler with the given PokemonService.
-func NewPokemonHandler(pokemonService service.PokemonService) *PokemonHandler {
+func NewPokemonHandler(pokemonService service.Pokemon) *PokemonHandler {
 	return &PokemonHandler{pokemonService: pokemonService}
 }
 

@@ -1,2 +1,2 @@
-// Package pokeapi provides a client for interacting with the PokeAPI.
+// Package pokeapi provides a client for retrieving Pokemon information.
 package pokeapi

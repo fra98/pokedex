@@ -11,16 +11,30 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/fra98/pokedex/pkg/api"
+	"github.com/fra98/pokedex/pkg/client/pokeapi"
+	"github.com/fra98/pokedex/pkg/client/translator"
 	"github.com/fra98/pokedex/pkg/flags"
 	"github.com/fra98/pokedex/pkg/server"
+	"github.com/fra98/pokedex/pkg/service"
 )
 
 func main() {
 	// Initialize options for the application
 	opts := flags.Init()
 
+	// Initialize clients
+	var pokeClient pokeapi.Client = pokeapi.NewPokeAPIClient(nil)
+	var translationClient translator.Client = translator.NewFunTranslationClient(nil)
+
+	// Initialize service
+	pokeService := service.NewPokemonService(pokeClient, translationClient)
+
+	// Initialize the API handler
+	pokemonHandler := api.NewPokemonHandler(pokeService)
+
 	// Setup the server
-	srv := setupServer(opts)
+	srv := setupServer(opts, pokemonHandler)
 
 	// Run the server
 	if err := runServer(srv, opts); err != nil {
@@ -28,7 +42,7 @@ func main() {
 	}
 }
 
-func setupServer(opts *flags.Options) *http.Server {
+func setupServer(opts *flags.Options, pokemonHandler *api.PokemonHandler) *http.Server {
 	// Setup the Gin engine
 	engine := server.SetupEngine()
 
@@ -36,7 +50,7 @@ func setupServer(opts *flags.Options) *http.Server {
 	server.SetupMiddlewares(engine)
 
 	// Register the API endpoints
-	server.RegisterEndpoints(engine)
+	server.RegisterEndpoints(engine, pokemonHandler)
 
 	return &http.Server{
 		Addr:         opts.Address,

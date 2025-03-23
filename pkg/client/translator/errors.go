@@ -1,4 +1,4 @@
-package funtranslator
+package translator
 
 import "errors"
 

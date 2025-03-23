@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/fra98/pokedex/pkg/server/handler"
+	"github.com/fra98/pokedex/pkg/api"
 	"github.com/fra98/pokedex/pkg/server/middleware"
 )
 
@@ -19,10 +19,14 @@ func SetupMiddlewares(r *gin.Engine) {
 }
 
 // RegisterEndpoints registers the endpoints of the API to the server engine.
-func RegisterEndpoints(r *gin.Engine) {
+func RegisterEndpoints(r *gin.Engine, pokeHandler *api.PokemonHandler) {
 	// Group the endpoints by version
 	v1 := r.Group("/v1")
 
-	// Health check
-	v1.GET("/health", handler.IsHealthy)
+	// Health check endpoint
+	v1.GET("/health", api.IsHealthy)
+
+	// Pokemon endpoints
+	v1.GET("/pokemon/:name", pokeHandler.GetPokemon)
+	v1.GET("/pokemon/translated/:name", pokeHandler.GetTranslatedPokemon)
 }

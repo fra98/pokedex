@@ -12,22 +12,24 @@ import (
 
 const defaultBaseURL = "https://pokeapi.co/api/v2"
 
-// Client represents a PokeAPI client.
-type Client struct {
+var _ Client = &PokeAPIClient{} // check if it implements the Client interface.
+
+// PokeAPIClient represents a client that interacts with the PokeAPI.
+type PokeAPIClient struct { //nolint:revive // avoid conflict with the interface name
 	httpClient *http.Client
 	baseURL    string
 }
 
-// NewClient returns a new PokeAPI client.
-func NewClient(baseURL *string) *Client {
-	return &Client{
+// NewPokeAPIClient returns a new PokeAPIClient.
+func NewPokeAPIClient(baseURL *string) *PokeAPIClient {
+	return &PokeAPIClient{
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		baseURL:    ptr.Deref(baseURL, defaultBaseURL),
 	}
 }
 
 // GetPokemonSpecies returns a Pokemon species by name.
-func (c *Client) GetPokemonSpecies(ctx context.Context, name string) (*PokemonSpecies, error) {
+func (c *PokeAPIClient) GetPokemonSpecies(ctx context.Context, name string) (*PokemonSpecies, error) {
 	url := c.baseURL + "/pokemon-species/" + name
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)

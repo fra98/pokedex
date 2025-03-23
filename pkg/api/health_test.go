@@ -1,4 +1,4 @@
-package handler_test
+package api_test
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/fra98/pokedex/pkg/server/handler"
+	"github.com/fra98/pokedex/pkg/api"
 )
 
 func TestIsHealthySuccess(t *testing.T) {
@@ -21,7 +21,7 @@ func TestIsHealthySuccess(t *testing.T) {
 	ctx, engine := gin.CreateTestContext(responseRecorder)
 
 	// Register the healthcheck endpoint to the gin engine
-	engine.GET("/health", handler.IsHealthy)
+	engine.GET("/health", api.IsHealthy)
 
 	// Create a test request for the above registered endpoint
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
