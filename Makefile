@@ -64,4 +64,14 @@ else
 NILAWAY=$(shell which nilaway)
 endif
 
+# Build local binary
+build:
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" -o ./bin/pokedex ./cmd/main.go
 
+# Build docker image
+build-docker:
+	docker build -t ghcr.io/fra98/pokedex:latest -f ./Dockerfile .
+
+# Run docker image
+run-docker: build-docker
+	docker run -p 8080:8080 ghcr.io/fra98/pokedex:latest
