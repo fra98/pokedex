@@ -27,7 +27,7 @@ func NewCachedTranslationClient(client Client, timeoutExpiration, cleanupInterva
 
 // Translate returns a translated text according to the translation type.
 func (c *CachedTranslationClient) Translate(ctx context.Context, text, translationType string) (string, error) {
-	cacheKey := "translation:" + translationType //+ ":" + strings.ReplaceAll(text, " ", "_")
+	cacheKey := "translation:" + translationType + ":" + text
 
 	// Try to get from cache first
 	if cachedData, found := c.cache.Get(cacheKey); found {
