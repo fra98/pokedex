@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,7 @@ type testCase struct {
 	expectedTranslationType string // "yoda", "shakespeare", or "original"
 }
 
+//nolint:cyclop // skip cyclomatic complexity for test cases
 func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func length for test cases
 	t.Parallel()
 
@@ -90,141 +92,147 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			// Setup test server for PokeAPI that returns data based on test case
-			pokeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
+		for _, cacheEnabled := range []bool{true, false} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				// Setup test server for PokeAPI that returns data based on test case
+				pokeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
 
-				// Extract pokemon name from URL
-				pokemonName := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+					// Extract pokemon name from URL
+					pokemonName := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 
-				// Verify it's the correct Pokemon for this test case
-				assert.Equal(t, tc.pokemonName, pokemonName)
+					// Verify it's the correct Pokemon for this test case
+					assert.Equal(t, tc.pokemonName, pokemonName)
 
-				// Return response based on test case
-				response := fmt.Sprintf(`{
-					"name": "%s",
-					"is_legendary": %t,
-					"habitat": {"name": "%s"},
-					"flavor_text_entries": [
-						{
-							"flavor_text": "%s",
-							"language": {"name": "en"}
+					// Return response based on test case
+					response := fmt.Sprintf(`{
+						"name": "%s",
+						"is_legendary": %t,
+						"habitat": {"name": "%s"},
+						"flavor_text_entries": [
+							{
+								"flavor_text": "%s",
+								"language": {"name": "en"}
+							}
+						]
+					}`, tc.pokemonName, tc.isLegendary, tc.habitat, tc.originalDescription)
+
+					_, err := w.Write([]byte(response))
+					assert.NoError(t, err)
+				}))
+				defer pokeServer.Close()
+
+				// Setup test server for Translator API
+				translatorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+
+					// Check which translation is being requested
+					path := r.URL.Path
+					var translation string
+
+					switch {
+					case strings.Contains(path, consts.YodaTranslationType):
+						// Only return a valid translation if we have one for the test case
+						if tc.yodaTranslation != "" {
+							translation = tc.yodaTranslation
+							w.WriteHeader(http.StatusOK)
+						} else {
+							w.WriteHeader(http.StatusTooManyRequests) // Simulate rate limiting
+							_, err := w.Write([]byte(`{"error":{"code":429,"message":"Too Many Requests"}}`))
+							assert.NoError(t, err)
+							return
 						}
-					]
-				}`, tc.pokemonName, tc.isLegendary, tc.habitat, tc.originalDescription)
-
-				_, err := w.Write([]byte(response))
-				assert.NoError(t, err)
-			}))
-			defer pokeServer.Close()
-
-			// Setup test server for Translator API
-			translatorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-
-				// Check which translation is being requested
-				path := r.URL.Path
-				var translation string
-
-				switch {
-				case strings.Contains(path, consts.YodaTranslationType):
-					// Only return a valid translation if we have one for the test case
-					if tc.yodaTranslation != "" {
-						translation = tc.yodaTranslation
-						w.WriteHeader(http.StatusOK)
-					} else {
-						w.WriteHeader(http.StatusTooManyRequests) // Simulate rate limiting
-						_, err := w.Write([]byte(`{"error":{"code":429,"message":"Too Many Requests"}}`))
-						assert.NoError(t, err)
+					case strings.Contains(path, consts.ShakespeareTranslationType):
+						// Only return a valid translation if we have one for the test case
+						if tc.shakespeareTranslation != "" {
+							translation = tc.shakespeareTranslation
+							w.WriteHeader(http.StatusOK)
+						} else {
+							w.WriteHeader(http.StatusTooManyRequests) // Simulate rate limiting
+							_, err := w.Write([]byte(`{"error":{"code":429,"message":"Too Many Requests"}}`))
+							assert.NoError(t, err)
+							return
+						}
+					default:
+						w.WriteHeader(http.StatusBadRequest)
 						return
 					}
-				case strings.Contains(path, consts.ShakespeareTranslationType):
-					// Only return a valid translation if we have one for the test case
-					if tc.shakespeareTranslation != "" {
-						translation = tc.shakespeareTranslation
-						w.WriteHeader(http.StatusOK)
-					} else {
-						w.WriteHeader(http.StatusTooManyRequests) // Simulate rate limiting
-						_, err := w.Write([]byte(`{"error":{"code":429,"message":"Too Many Requests"}}`))
-						assert.NoError(t, err)
-						return
-					}
-				default:
-					w.WriteHeader(http.StatusBadRequest)
-					return
+
+					response := fmt.Sprintf(`{
+						"contents": {
+							"translated": "%s"
+						}
+					}`, translation)
+
+					_, err := w.Write([]byte(response))
+					assert.NoError(t, err)
+				}))
+				defer translatorServer.Close()
+
+				// Create clients pointing to test servers
+				var pokeClient pokeapi.Client = pokeapi.NewPokeAPIClient(&pokeServer.URL)
+				var translatorClient translator.Client = translator.NewFunTranslationClient(&translatorServer.URL)
+				if cacheEnabled {
+					pokeClient = pokeapi.NewCachedPokeAPIClient(pokeClient, 1*time.Hour, 24*time.Hour)
+					translatorClient = translator.NewCachedTranslationClient(translatorClient, 1*time.Hour, 24*time.Hour)
 				}
 
-				response := fmt.Sprintf(`{
-					"contents": {
-						"translated": "%s"
-					}
-				}`, translation)
+				// Create service and handler
+				pokemonService := service.NewPokemonService(pokeClient, translatorClient)
+				pokemonHandler := api.NewPokemonHandler(pokemonService)
 
-				_, err := w.Write([]byte(response))
-				assert.NoError(t, err)
-			}))
-			defer translatorServer.Close()
+				// Set up router
+				router := gin.New()
+				v1 := router.Group("/v1")
+				v1.GET("/health", api.IsHealthy)
+				v1.GET("/pokemon/:name", pokemonHandler.GetPokemon)
+				v1.GET("/pokemon/translated/:name", pokemonHandler.GetTranslatedPokemon)
 
-			// Create clients pointing to test servers
-			pokeClient := pokeapi.NewPokeAPIClient(&pokeServer.URL)
-			translatorClient := translator.NewFunTranslationClient(&translatorServer.URL)
+				// Test standard endpoint first
+				w := httptest.NewRecorder()
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/"+tc.pokemonName, http.NoBody)
+				require.NoError(t, err)
+				router.ServeHTTP(w, req)
 
-			// Create service and handler
-			pokemonService := service.NewPokemonService(pokeClient, translatorClient)
-			pokemonHandler := api.NewPokemonHandler(pokemonService)
+				assert.Equal(t, http.StatusOK, w.Code)
 
-			// Set up router
-			router := gin.New()
-			v1 := router.Group("/v1")
-			v1.GET("/health", api.IsHealthy)
-			v1.GET("/pokemon/:name", pokemonHandler.GetPokemon)
-			v1.GET("/pokemon/translated/:name", pokemonHandler.GetTranslatedPokemon)
+				var basicResponse models.PokemonResponse
+				err = json.Unmarshal(w.Body.Bytes(), &basicResponse)
+				require.NoError(t, err)
 
-			// Test standard endpoint first
-			w := httptest.NewRecorder()
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/"+tc.pokemonName, http.NoBody)
-			require.NoError(t, err)
-			router.ServeHTTP(w, req)
+				assert.Equal(t, tc.pokemonName, basicResponse.Name)
+				assert.Equal(t, tc.originalDescription, basicResponse.Description)
+				assert.Equal(t, tc.habitat, basicResponse.Habitat)
+				assert.Equal(t, tc.isLegendary, basicResponse.IsLegendary)
 
-			assert.Equal(t, http.StatusOK, w.Code)
+				// Test translated endpoint
+				w = httptest.NewRecorder()
+				req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/translated/"+tc.pokemonName, http.NoBody)
+				require.NoError(t, err)
+				router.ServeHTTP(w, req)
 
-			var basicResponse models.PokemonResponse
-			err = json.Unmarshal(w.Body.Bytes(), &basicResponse)
-			require.NoError(t, err)
+				assert.Equal(t, http.StatusOK, w.Code)
 
-			assert.Equal(t, tc.pokemonName, basicResponse.Name)
-			assert.Equal(t, tc.originalDescription, basicResponse.Description)
-			assert.Equal(t, tc.habitat, basicResponse.Habitat)
-			assert.Equal(t, tc.isLegendary, basicResponse.IsLegendary)
+				var translatedResponse models.PokemonResponse
+				err = json.Unmarshal(w.Body.Bytes(), &translatedResponse)
+				require.NoError(t, err)
 
-			// Test translated endpoint
-			w = httptest.NewRecorder()
-			req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/translated/"+tc.pokemonName, http.NoBody)
-			require.NoError(t, err)
-			router.ServeHTTP(w, req)
+				assert.Equal(t, tc.pokemonName, translatedResponse.Name)
+				assert.Equal(t, tc.habitat, translatedResponse.Habitat)
+				assert.Equal(t, tc.isLegendary, translatedResponse.IsLegendary)
 
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			var translatedResponse models.PokemonResponse
-			err = json.Unmarshal(w.Body.Bytes(), &translatedResponse)
-			require.NoError(t, err)
-
-			assert.Equal(t, tc.pokemonName, translatedResponse.Name)
-			assert.Equal(t, tc.habitat, translatedResponse.Habitat)
-			assert.Equal(t, tc.isLegendary, translatedResponse.IsLegendary)
-
-			// Check that the correct translation was used
-			switch tc.expectedTranslationType {
-			case consts.YodaTranslationType:
-				assert.Equal(t, tc.yodaTranslation, translatedResponse.Description)
-			case consts.ShakespeareTranslationType:
-				assert.Equal(t, tc.shakespeareTranslation, translatedResponse.Description)
-			default:
-				assert.Equal(t, tc.originalDescription, translatedResponse.Description)
-			}
-		})
+				// Check that the correct translation was used
+				switch tc.expectedTranslationType {
+				case consts.YodaTranslationType:
+					assert.Equal(t, tc.yodaTranslation, translatedResponse.Description)
+				case consts.ShakespeareTranslationType:
+					assert.Equal(t, tc.shakespeareTranslation, translatedResponse.Description)
+				default:
+					assert.Equal(t, tc.originalDescription, translatedResponse.Description)
+				}
+			})
+		}
 	}
 }
