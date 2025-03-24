@@ -77,4 +77,4 @@ run-docker: build-docker
 	docker run -p 8080:8080 pokedex:latest
 
 test:
-	go test ./...
+	go test ./... -count=1

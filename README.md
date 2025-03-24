@@ -22,7 +22,8 @@ If you want to build and run the application locally, you will need the followin
 
 If you prefer to use [Docker](https://docs.docker.com/get-started/get-docker/), you need a working Docker installation.
 
-Warning: the following instructions assume you have a Unix-like environment (e.g., Linux, macOS). If you are using Windows, you may need to adapt the commands accordingly.
+Warning: the following instructions assume you have a Unix-like environment (e.g., Linux, macOS).
+If you are using Windows, you may need to adapt the commands accordingly.
 
 ## Installation
 
@@ -75,18 +76,33 @@ Or, if you want to pass arguments to the container:
 docker run -p 8080:8080 pokedex:latest
 ```
 
+## Configuration
+
+The API server can be configured using the following flags:
+
+```text
+Usage of ./bin/pokedex:
+    --address string                      Address to listen on (default ":8080")
+    --cache-cleanup-interval duration     Cache cleanup interval (default 24h)
+    --cache-timeout-expiration duration   Cache timeout expiration (default 1h)
+    --disable-cache                       Disable cache
+    --read-timeout duration               Read timeout for the server (default 10s)
+    --shutdown-timeout duration           Graceful shutdown timeout for the server (default 10s)
+    --write-timeout duration              Write timeout for the server (default 10s)
+```
+
 ## API Endpoints
 
 ### 1. Get Basic Pokémon Information
 
 ```text
-GET /pokemon/<pokemon-name>
+GET /v1/pokemon/<pokemon-name>
 ```
 
 Example:
 
 ```bash
-http GET http://localhost:8080/pokemon/mewtwo
+http GET http://localhost:8080/v1/pokemon/mewtwo
 ```
 
 Response:
@@ -103,13 +119,13 @@ Response:
 ### 2. Get Translated Pokémon Description
 
 ```text
-GET /pokemon/translated/<pokemon-name>
+GET /v1/pokemon/translated/<pokemon-name>
 ```
 
 Example:
 
 ```bash
-http GET http://localhost:8080/pokemon/translated/mewtwo
+http GET http://localhost:8080/v1/pokemon/translated/mewtwo
 ```
 
 Response:
@@ -130,13 +146,13 @@ You can test the API using a web browser or tools like Postman, curl, httpie, et
 1. Basic information:
 
    ```text
-   http://localhost:8080/pokemon/pikachu
+   http://localhost:8080/v1/pokemon/pikachu
    ```
 
 2. Translated information:
 
    ```text
-   http://localhost:8080/pokemon/translated/pikachu
+   http://localhost:8080/v1/pokemon/translated/pikachu
    ```
 
 ## Design Decisions
@@ -264,7 +280,6 @@ For a production environment, the following enhancements could be made:
 
 1. **API Documentation**: Add Swagger/OpenAPI documentation
 2. **Kubernetes Deployment**: Create a Kubernetes deployment manifest for easy scaling and management
-3. **API Versioning**: Implement API versioning to maintain backward compatibility
 
 #### Testing
 

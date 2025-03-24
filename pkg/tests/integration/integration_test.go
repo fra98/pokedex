@@ -178,12 +178,14 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 
 			// Set up router
 			router := gin.New()
-			router.GET("/pokemon/:name", pokemonHandler.GetPokemon)
-			router.GET("/pokemon/translated/:name", pokemonHandler.GetTranslatedPokemon)
+			v1 := router.Group("/v1")
+			v1.GET("/health", api.IsHealthy)
+			v1.GET("/pokemon/:name", pokemonHandler.GetPokemon)
+			v1.GET("/pokemon/translated/:name", pokemonHandler.GetTranslatedPokemon)
 
 			// Test standard endpoint first
 			w := httptest.NewRecorder()
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/"+tc.pokemonName, http.NoBody)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/"+tc.pokemonName, http.NoBody)
 			require.NoError(t, err)
 			router.ServeHTTP(w, req)
 
@@ -200,7 +202,7 @@ func TestPokemonAPIHandler(t *testing.T) { //nolint:funlen // skip long func len
 
 			// Test translated endpoint
 			w = httptest.NewRecorder()
-			req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/pokemon/translated/"+tc.pokemonName, http.NoBody)
+			req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/pokemon/translated/"+tc.pokemonName, http.NoBody)
 			require.NoError(t, err)
 			router.ServeHTTP(w, req)
 
