@@ -45,14 +45,16 @@ func (c *PokeAPIClient) GetPokemonSpecies(ctx context.Context, name string) (*Po
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get Pokemon species (code: %d): %w", resp.StatusCode, errors.ErrFailedRequest)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var species PokemonSpecies
+		if err := json.NewDecoder(resp.Body).Decode(&species); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		return &species, nil
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("pokemon species not found: %w", errors.ErrResourceNotFound)
+	default:
+		return nil, fmt.Errorf("failed to get pokemon species (code: %d): %w", resp.StatusCode, errors.ErrFailedRequest)
 	}
-
-	var species PokemonSpecies
-	if err := json.NewDecoder(resp.Body).Decode(&species); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return &species, nil
 }
